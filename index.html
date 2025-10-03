@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日抬水提醒</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="assets/css/inter-font.css" rel="stylesheet">
+    <link href="assets/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 标题栏 -->
+    <div class="titlebar">
+        <div class="titlebar-drag-region">
+            <div class="titlebar-title">
+                <i class="fas fa-tint"></i>
+                <span>每日抬水提醒</span>
+            </div>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-button minimize" id="minimizeBtn">
+                <i class="fas fa-minus"></i>
+            </button>
+            <button class="titlebar-button maximize" id="maximizeBtn">
+                <i class="fas fa-square"></i>
+            </button>
+            <button class="titlebar-button close" id="closeBtn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="assets/19.jpg" alt="19" class="logo-image">
+                    <div class="logo-text">
+                        <span class="logo-title">逐梦者19班</span>
+                        <span class="logo-motto">“我们不生产水，我们只是翠南山的搬运工"</span>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-page="dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>主页</span>
+                </button>
+                <button class="nav-item" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>设置</span>
+                </button>
+                <button class="nav-item" data-page="students">
+                    <i class="fas fa-users"></i>
+                    <span>学生管理</span>
+                </button>
+                <button class="nav-item" data-page="history">
+                    <i class="fas fa-history"></i>
+                    <span>历史记录</span>
+                </button>
+                <button class="nav-item" data-page="about">
+                    <i class="fas fa-user"></i>
+                    <span>关于作者</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- 主内容 -->
+        <div class="main-content">
+            <!-- 主页 -->
+            <div class="page active" id="dashboard">
+                <div class="page-header">
+                    <h1>主页</h1>
+                    <div class="status-indicator">
+                        <div class="status-dot" id="statusDot"></div>
+                        <span id="statusText">未启用</span>
+                    </div>
+                </div>
+                
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>当前状态</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="status-info">
+                                <div class="info-item">
+                                    <span class="label">提醒时间:</span>
+                                    <span class="value" id="currentTime">未设置</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">距离下一次提醒:</span>
+                                    <span class="value" id="daysUntilReminder">计算中...</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">语音播报:</span>
+                                    <span class="value" id="voiceStatus">未启用</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>抬水统计</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="water-stats">
+                                <div class="stat-item">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-tint"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <div class="stat-label">累计抬水</div>
+                                        <div class="stat-value" id="waterCount">0 桶</div>
+                                    </div>
+                                </div>
+                                <div class="water-actions">
+                                    <button class="btn btn-primary" id="editWaterCount">
+                                        <i class="fas fa-edit"></i>
+                                        修改
+                                    </button>
+                                    <button class="btn btn-danger" id="resetWaterCount">
+                                        <i class="fas fa-redo"></i>
+                                        清零
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>测试按钮</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="action-buttons">
+                                <button class="btn btn-primary" id="testNotification">
+                                    <i class="fas fa-bell"></i>
+                                    测试通知
+                                </button>
+                                <button class="btn btn-secondary" id="testVoice">
+                                    <i class="fas fa-volume-up"></i>
+                                    测试语音
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>最近提醒</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="recent-reminders" id="recentReminders">
+                                <div class="no-data">暂无提醒记录</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设置 -->
+            <div class="page" id="settings">
+                <div class="page-header">
+                    <h1>设置</h1>
+                </div>
+                
+                <div class="settings-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>基本设置</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <input type="checkbox" id="enableReminder" class="checkbox">
+                                    <span class="checkmark"></span>
+                                    启用提醒功能
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="reminderTime" class="form-label">提醒时间</label>
+                                <input type="time" id="reminderTime" class="form-input" value="09:00">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <input type="checkbox" id="enableVoice" class="checkbox">
+                                    <span class="checkmark"></span>
+                                    启用语音播报
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="voiceVolume" class="form-label">语音音量</label>
+                                <input type="range" id="voiceVolume" class="form-range" min="0" max="1" step="0.1" value="0.8">
+                                <span class="range-value" id="volumeValue">80%</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="switch-label">
+                                    <span class="switch-text">启动时最小化到系统托盘</span>
+                                    <label class="switch">
+                                        <input type="checkbox" id="startMinimized">
+                                        <span class="slider"></span>
+                                    </label>
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="switch-label">
+                                    <span class="switch-text">开机自动启动</span>
+                                    <label class="switch">
+                                        <input type="checkbox" id="autoStart">
+                                        <span class="slider"></span>
+                                    </label>
+                                </label>
+                            </div>
+                            
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>外观设置</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="form-group">
+                                <label class="form-label">主题模式</label>
+                                <div class="theme-mode-selector">
+                                    <label class="theme-mode-option">
+                                        <input type="radio" name="themeMode" value="light" id="lightMode">
+                                        <span class="theme-mode-mark"></span>
+                                        <span class="theme-mode-text">浅色模式</span>
+                                    </label>
+                                    <label class="theme-mode-option">
+                                        <input type="radio" name="themeMode" value="dark" id="darkMode">
+                                        <span class="theme-mode-mark"></span>
+                                        <span class="theme-mode-text">深色模式</span>
+                                    </label>
+                                    <label class="theme-mode-option">
+                                        <input type="radio" name="themeMode" value="system" id="systemMode">
+                                        <span class="theme-mode-mark"></span>
+                                        <span class="theme-mode-text">跟随系统</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">主题色彩</label>
+                                <div class="theme-color-selector">
+                                    <div class="theme-color-option" data-theme="blue">
+                                        <div class="theme-color-preview theme-blue"></div>
+                                        <span class="theme-color-name">海洋蓝</span>
+                                    </div>
+                                    <div class="theme-color-option" data-theme="green">
+                                        <div class="theme-color-preview theme-green"></div>
+                                        <span class="theme-color-name">森林绿</span>
+                                    </div>
+                                    <div class="theme-color-option" data-theme="purple">
+                                        <div class="theme-color-preview theme-purple"></div>
+                                        <span class="theme-color-name">优雅紫</span>
+                                    </div>
+                                    <div class="theme-color-option" data-theme="orange">
+                                        <div class="theme-color-preview theme-orange"></div>
+                                        <span class="theme-color-name">温暖橙</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>标题设置</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="form-group">
+                                <label for="logoImage" class="form-label">头像图片</label>
+                                <div class="logo-upload-container">
+                                    <img id="logoPreview" src="assets/19.jpg" alt="头像图片" class="logo-preview">
+                                    <div class="logo-upload-actions">
+                                        <input type="file" id="logoImageInput" accept="image/*" style="display: none;">
+                                        <button type="button" class="btn btn-secondary" id="selectLogoBtn">
+                                            <i class="fas fa-image"></i>
+                                            选择图片
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="logoTitle" class="form-label">标题</label>
+                                <input type="text" id="logoTitle" class="form-input" value="逐梦者19班" placeholder="请输入标题">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="logoMotto" class="form-label">座右铭</label>
+                                <input type="text" id="logoMotto" class="form-input" value="我们不生产水，我们只是翠南山的搬运工" placeholder="请输入座右铭">
+                            </div>
+                            
+                            <div class="form-group">
+                                <div class="button-group">
+                                    <button type="button" class="btn btn-primary" id="saveLogoSettings">
+                                        <i class="fas fa-save"></i>
+                                        保存设置
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="resetLogoBtn">
+                                        <i class="fas fa-undo"></i>
+                                        重置默认
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 学生管理 -->
+            <div class="page" id="students">
+                <div class="page-header">
+                    <h1>名单管理</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" id="exportStudents">
+                            <i class="fas fa-download"></i>
+                            导出名单
+                        </button>
+                        <button class="btn btn-secondary" id="importStudents">
+                            <i class="fas fa-upload"></i>
+                            导入名单
+                        </button>
+                        <button class="btn btn-primary" id="addStudent">
+                            <i class="fas fa-plus"></i>
+                            添加学生
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="students-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>学生列表</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="students-list" id="studentsList">
+                                <div class="no-data">暂无学生信息</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 历史记录 -->
+            <div class="page" id="history">
+                <div class="page-header">
+                    <h1>历史记录</h1>
+                    <button class="btn btn-danger" id="clearHistory">
+                        <i class="fas fa-trash"></i>
+                        清除历史
+                    </button>
+                </div>
+                
+                <div class="history-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>提醒历史</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="history-list" id="historyList">
+                                <div class="no-data">暂无历史记录</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 关于 -->
+            <div class="page" id="about">
+                <div class="page-header">
+                    <h1>关于作者</h1>
+                </div>
+                
+                <div class="about-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>开发者信息</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="author-info">
+                                <div class="author-avatar">
+                                    <img src="assets/avatar.jpg" alt="Snacks" class="avatar-image">
+                                </div>
+                                <div class="author-details">
+                                    <h2 class="author-name">Snacks</h2>
+                                    <p class="author-description">
+                                        代码改变世界<br>
+                                        Everything happens for you, not to you.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>联系方式</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="contact-grid">
+                                <div class="contact-item">
+                                    <div class="contact-icon">
+                                        <i class="fab fa-weixin"></i>
+                                    </div>
+                                    <div class="contact-info">
+                                        <div class="contact-label">微信号</div>
+                                        <div class="contact-value">bg5vqw</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary copy-btn" data-copy="bg5vqw">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+
+                                <div class="contact-item">
+                                    <div class="contact-icon">
+                                        <i class="fab fa-qq"></i>
+                                    </div>
+                                    <div class="contact-info">
+                                        <div class="contact-label">QQ号</div>
+                                        <div class="contact-value">2171522471</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary copy-btn" data-copy="2171522471">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+
+                                <div class="contact-item">
+                                    <div class="contact-icon">
+                                        <i class="fas fa-envelope"></i>
+                                    </div>
+                                    <div class="contact-info">
+                                        <div class="contact-label">Gmail邮箱</div>
+                                        <div class="contact-value">snacks.bug9220@gmail.com</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary copy-btn" data-copy="snacks.bug9220@gmail.com">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>社交媒体</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="social-grid">
+                                <a href="https://github.com/ling-shi-cyber" target="_blank" class="social-item">
+                                    <div class="social-icon github">
+                                        <i class="fab fa-github"></i>
+                                    </div>
+                                    <div class="social-info">
+                                        <div class="social-label">GitHub</div>
+                                        <div class="social-value">Snacks</div>
+                                    </div>
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+
+                                <a href="https://space.bilibili.com/506759404?spm_id_from=333.1007.0.0" target="_blank" class="social-item">
+                                    <div class="social-icon bilibili">
+                                        <i class="fas fa-tv"></i>
+                                    </div>
+                                    <div class="social-info">
+                                        <div class="social-label">哔哩哔哩</div>
+                                        <div class="social-value">Snacks_bug</div>
+                                    </div>
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>应用信息</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="app-info">
+                                <div class="info-item">
+                                    <span class="label">应用名称:</span>
+                                    <span class="value">每日抬水提醒</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">版本:</span>
+                                    <span class="value">v1.0.0</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">最后更新时间:</span>
+                                    <span class="value">2025年10月2日</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加学生弹窗 -->
+    <div class="modal" id="addStudentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加学生</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="studentName" class="form-label">学生姓名</label>
+                    <input type="text" id="studentName" class="form-input" placeholder="请输入学生姓名">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelAdd">取消</button>
+                <button class="btn btn-primary" id="confirmAdd">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改计数弹窗 -->
+    <div class="modal" id="editWaterCountModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>修改抬水计数</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newWaterCount" class="form-label">新的抬水桶数</label>
+                    <input type="number" id="newWaterCount" class="form-input" placeholder="请输入桶数" min="0">
+                    <div class="form-help">当前累计抬水：<span id="currentWaterCount">0</span> 桶</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelEditWaterCount">取消</button>
+                <button class="btn btn-primary" id="confirmEditWaterCount">确认修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入学生弹窗 -->
+    <div class="modal" id="importStudentsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>导入学生名单</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">选择导入方式</label>
+                    <div class="import-options">
+                        <label class="import-option">
+                            <input type="radio" name="importType" value="file" checked>
+                            <span class="radio-mark"></span>
+                            从文件导入
+                        </label>
+                        <label class="import-option">
+                            <input type="radio" name="importType" value="text">
+                            <span class="radio-mark"></span>
+                            从文本导入
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="fileImportGroup">
+                    <label for="importFile" class="form-label">选择文件</label>
+                    <input type="file" id="importFile" class="form-input" accept=".txt,.csv,.json">
+                    <div class="form-help">支持 .txt、.csv、.json 格式文件</div>
+                </div>
+                
+                <div class="form-group" id="textImportGroup" style="display: none;">
+                    <label for="importText" class="form-label">学生名单（每行一个姓名）</label>
+                    <textarea id="importText" class="form-textarea" rows="10" placeholder="请输入学生姓名，每行一个：&#10;张三&#10;李四&#10;王五"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="importReplace" class="checkbox">
+                        <span class="checkmark"></span>
+                        替换现有名单（否则追加到现有名单）
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelImport">取消</button>
+                <button class="btn btn-primary" id="confirmImport">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
