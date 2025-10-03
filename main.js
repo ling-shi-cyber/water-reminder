@@ -13,6 +13,143 @@ let tray = null;
 let reminderTimer = null;
 let currentReminderIndex = 0; // 轮流提醒用的索引
 
+// 默认配置文件内容
+const defaultConfig = {
+  version: "1.0.1",
+  settings: {
+    enabled: true,
+    reminderTime: "09:00",
+    voiceEnabled: true,
+    volume: 1.0,
+    startMinimized: false,
+    autoStart: false,
+    autoCheckUpdate: true
+  },
+  students: [],
+  waterCount: 0,
+  reminderIndex: 0,
+  firstRun: true
+};
+
+// 初始化配置文件
+function initializeConfig() {
+  // 使用用户数据目录而不是应用目录
+  const userDataPath = app.getPath('userData');
+  const configPath = path.join(userDataPath, 'config.json');
+  
+  try {
+    // 确保用户数据目录存在
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
+    }
+    
+    // 检查配置文件是否存在
+    if (!fs.existsSync(configPath)) {
+      console.log('首次运行，创建默认配置文件...');
+      console.log('配置文件位置:', configPath);
+      
+      // 创建默认配置文件
+      fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf8');
+      console.log('默认配置文件已创建:', configPath);
+      
+      // 将默认配置写入electron-store
+      store.set('settings', defaultConfig.settings);
+      store.set('students', defaultConfig.students);
+      store.set('waterCount', defaultConfig.waterCount);
+      store.set('reminderIndex', defaultConfig.reminderIndex);
+      store.set('firstRun', defaultConfig.firstRun);
+      
+      console.log('默认配置已写入存储');
+    } else {
+      console.log('配置文件已存在，加载现有配置...');
+      
+      // 读取现有配置文件
+      const configContent = fs.readFileSync(configPath, 'utf8');
+      const config = JSON.parse(configContent);
+      
+      // 检查是否需要更新配置结构
+      let configUpdated = false;
+      
+      // 如果配置文件中没有某些字段，添加默认值
+      if (!config.settings) {
+        config.settings = defaultConfig.settings;
+        configUpdated = true;
+      }
+      
+      if (!config.students) {
+        config.students = defaultConfig.students;
+        configUpdated = true;
+      }
+      
+      if (config.waterCount === undefined) {
+        config.waterCount = defaultConfig.waterCount;
+        configUpdated = true;
+      }
+      
+      if (config.reminderIndex === undefined) {
+        config.reminderIndex = defaultConfig.reminderIndex;
+        configUpdated = true;
+      }
+      
+      if (config.firstRun === undefined) {
+        config.firstRun = false;
+        configUpdated = true;
+      }
+      
+      // 更新版本号
+      if (config.version !== defaultConfig.version) {
+        config.version = defaultConfig.version;
+        configUpdated = true;
+      }
+      
+      // 如果配置有更新，保存文件
+      if (configUpdated) {
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+        console.log('配置文件已更新');
+      }
+      
+      // 将配置加载到electron-store
+      store.set('settings', config.settings);
+      store.set('students', config.students);
+      store.set('waterCount', config.waterCount);
+      store.set('reminderIndex', config.reminderIndex);
+      store.set('firstRun', config.firstRun);
+      
+      console.log('现有配置已加载');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('初始化配置文件失败:', error);
+    return false;
+  }
+}
+
+// 更新配置文件
+function updateConfigFile() {
+  // 使用用户数据目录而不是应用目录
+  const userDataPath = app.getPath('userData');
+  const configPath = path.join(userDataPath, 'config.json');
+  
+  try {
+    const config = {
+      version: defaultConfig.version,
+      settings: store.get('settings', defaultConfig.settings),
+      students: store.get('students', defaultConfig.students),
+      waterCount: store.get('waterCount', defaultConfig.waterCount),
+      reminderIndex: store.get('reminderIndex', defaultConfig.reminderIndex),
+      firstRun: store.get('firstRun', defaultConfig.firstRun)
+    };
+    
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    console.log('配置文件已同步更新');
+    return true;
+  } catch (error) {
+    console.error('更新配置文件失败:', error);
+    return false;
+  }
+}
+
 // 防止重复启动
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -182,6 +319,15 @@ function createTray() {
 app.whenReady().then(() => {
   console.log('应用启动中...');
   
+  // 首先初始化配置文件
+  console.log('正在初始化配置文件...');
+  if (!initializeConfig()) {
+    console.error('配置文件初始化失败，应用将退出');
+    app.quit();
+    return;
+  }
+  console.log('配置文件初始化完成');
+  
   const settings = store.get('settings', {});
   
   createWindow();
@@ -192,10 +338,6 @@ app.whenReady().then(() => {
   
   initializeReminder();
   console.log('提醒功能初始化完成');
-  
-  // 检查更新
-  checkForUpdates();
-  console.log('更新检查已启动');
   
   // 启动时最小化
   if (settings.startMinimized) {
@@ -210,6 +352,12 @@ app.whenReady().then(() => {
   });
   
   console.log('应用启动完成');
+  
+  // 应用启动完成后再检查更新，延迟2秒确保所有初始化完成
+  setTimeout(() => {
+    checkForUpdates();
+    console.log('更新检查已启动');
+  }, 2000);
 });
 
 // macOS 窗口关闭时退出
@@ -474,6 +622,17 @@ ipcMain.handle('get-settings', () => {
   });
 });
 
+ipcMain.handle('get-first-run', () => {
+  return store.get('firstRun', true);
+});
+
+ipcMain.handle('set-first-run-complete', () => {
+  store.set('firstRun', false);
+  // 同步到config.json
+  updateConfigFile();
+  return true;
+});
+
 ipcMain.handle('save-settings', (event, settings) => {
   const oldSettings = store.get('settings', {});
   
@@ -490,6 +649,9 @@ ipcMain.handle('save-settings', (event, settings) => {
     setAutoStart(settings.autoStart);
   }
   
+  // 同步到config.json
+  updateConfigFile();
+  
   return true;
 });
 
@@ -499,6 +661,8 @@ ipcMain.handle('get-students', () => {
 
 ipcMain.handle('save-students', (event, students) => {
   store.set('students', students);
+  // 同步到config.json
+  updateConfigFile();
   return true;
 });
 
@@ -519,6 +683,8 @@ ipcMain.handle('get-reminder-index', () => {
 ipcMain.handle('reset-reminder-index', () => {
   currentReminderIndex = 0;
   store.set('reminderIndex', 0);
+  // 同步到config.json
+  updateConfigFile();
   return true;
 });
 
@@ -530,11 +696,15 @@ ipcMain.handle('increment-water-count', (event, amount = 1) => {
   const currentCount = store.get('waterCount', 0);
   const newCount = currentCount + amount;
   store.set('waterCount', newCount);
+  // 同步到config.json
+  updateConfigFile();
   return newCount;
 });
 
 ipcMain.handle('reset-water-count', () => {
   store.set('waterCount', 0);
+  // 同步到config.json
+  updateConfigFile();
   return 0;
 });
 
@@ -545,6 +715,8 @@ ipcMain.handle('set-water-count', (event, newCount) => {
   }
   
   store.set('waterCount', count);
+  // 同步到config.json
+  updateConfigFile();
   return { success: true, count: count };
 });
 
@@ -692,12 +864,6 @@ ipcMain.handle('window-is-maximized', () => {
 
 // 自动更新功能
 function checkForUpdates() {
-  // 开发环境跳过更新检查
-  if (process.env.NODE_ENV === 'development') {
-    console.log('开发环境，跳过更新检查');
-    return;
-  }
-
   // 检查用户设置
   const settings = store.get('settings', {});
   if (!settings.autoCheckUpdate) {
@@ -705,12 +871,137 @@ function checkForUpdates() {
     return;
   }
 
+  // 开发环境也允许检查更新，但使用不同的策略
+  if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
+    console.log('开发环境，使用GitHub API检查更新');
+    checkForUpdatesInDev();
+    return;
+  }
+
+  // 生产环境正常检查更新
+  console.log('生产环境，开始检查更新...');
   autoUpdater.checkForUpdatesAndNotify();
+}
+
+// 开发环境更新检查
+async function checkForUpdatesInDev() {
+  console.log('开发环境更新检查...');
+  
+  try {
+    // 检查GitHub releases
+    const https = require('https');
+    const currentVersion = require('./package.json').version;
+    
+    console.log(`当前版本: ${currentVersion}`);
+    
+    const options = {
+      hostname: 'api.github.com',
+      path: '/repos/ling-shi-cyber/water-reminder/releases/latest',
+      headers: {
+        'User-Agent': 'Water-Reminder-App'
+      }
+    };
+    
+    const req = https.request(options, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        try {
+          const release = JSON.parse(data);
+          const latestVersion = release.tag_name.replace('v', '');
+          
+          console.log(`GitHub最新版本: ${latestVersion}`);
+          
+          if (compareVersions(latestVersion, currentVersion) > 0) {
+            console.log('发现新版本:', latestVersion);
+            if (mainWindow) {
+              mainWindow.webContents.send('update-available', {
+                version: latestVersion,
+                releaseNotes: release.body,
+                releaseUrl: release.html_url
+              });
+            }
+          } else {
+            console.log('当前已是最新版本');
+            if (mainWindow) {
+              mainWindow.webContents.send('update-not-available', {
+                version: currentVersion,
+                message: '开发环境：当前已是最新版本'
+              });
+            }
+          }
+        } catch (error) {
+          console.error('解析GitHub API响应失败:', error);
+          if (mainWindow) {
+            mainWindow.webContents.send('update-error', {
+              message: '解析更新信息失败',
+              code: 'PARSE_ERROR'
+            });
+          }
+        }
+      });
+    });
+    
+    req.on('error', (error) => {
+      console.error('GitHub API请求失败:', error);
+      if (mainWindow) {
+        mainWindow.webContents.send('update-error', {
+          message: '无法连接到更新服务器',
+          code: 'NETWORK_ERROR'
+        });
+      }
+    });
+    
+    req.setTimeout(10000, () => {
+      console.error('GitHub API请求超时');
+      req.destroy();
+      if (mainWindow) {
+        mainWindow.webContents.send('update-error', {
+          message: '更新检查超时',
+          code: 'TIMEOUT_ERROR'
+        });
+      }
+    });
+    
+    req.end();
+    
+  } catch (error) {
+    console.error('开发环境更新检查失败:', error);
+    if (mainWindow) {
+      mainWindow.webContents.send('update-error', {
+        message: '更新检查失败',
+        code: 'UNKNOWN_ERROR'
+      });
+    }
+  }
+}
+
+// 版本比较函数
+function compareVersions(version1, version2) {
+  const v1parts = version1.split('.').map(Number);
+  const v2parts = version2.split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(v1parts.length, v2parts.length); i++) {
+    const v1part = v1parts[i] || 0;
+    const v2part = v2parts[i] || 0;
+    
+    if (v1part > v2part) return 1;
+    if (v1part < v2part) return -1;
+  }
+  
+  return 0;
 }
 
 // 更新事件监听
 autoUpdater.on('checking-for-update', () => {
   console.log('正在检查更新...');
+  if (mainWindow) {
+    mainWindow.webContents.send('update-checking');
+  }
 });
 
 autoUpdater.on('update-available', (info) => {
@@ -722,16 +1013,28 @@ autoUpdater.on('update-available', (info) => {
 
 autoUpdater.on('update-not-available', (info) => {
   console.log('当前已是最新版本');
+  if (mainWindow) {
+    mainWindow.webContents.send('update-not-available', info);
+  }
 });
 
 autoUpdater.on('error', (err) => {
   console.error('更新检查失败:', err);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-error', {
+      message: err.message || '更新检查失败',
+      code: err.code || 'UNKNOWN_ERROR'
+    });
+  }
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
   console.log('下载进度:', Math.round(progressObj.percent) + '%');
-  if (mainWindow) {
-    mainWindow.webContents.send('download-progress', progressObj);
+  // 只在下载开始时发送一次通知，不频繁更新
+  if (progressObj.percent === 0 || progressObj.percent < 5) {
+    if (mainWindow) {
+      mainWindow.webContents.send('download-progress', progressObj);
+    }
   }
 });
 
@@ -748,7 +1051,56 @@ ipcMain.handle('check-for-updates', () => {
   return true;
 });
 
+ipcMain.handle('download-update', () => {
+  // 在生产环境中，autoUpdater会自动处理下载
+  // 在开发环境中，我们只是模拟下载过程
+  if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
+    console.log('开发环境：模拟开始下载更新...');
+    
+    // 只显示一次下载开始提示
+    if (mainWindow) {
+      mainWindow.webContents.send('download-progress', {
+        percent: 0,
+        bytesPerSecond: 0,
+        total: 0,
+        transferred: 0
+      });
+    }
+    
+    // 模拟下载过程，但不频繁发送进度更新
+    setTimeout(() => {
+      if (mainWindow) {
+        mainWindow.webContents.send('update-downloaded', {
+          version: '1.0.2',
+          releaseNotes: '开发环境模拟更新'
+        });
+      }
+    }, 3000); // 3秒后完成下载
+  } else {
+    // 生产环境使用autoUpdater
+    console.log('生产环境：使用electron-updater下载更新');
+    autoUpdater.checkForUpdatesAndNotify();
+  }
+  return true;
+});
+
 ipcMain.handle('install-update', () => {
   autoUpdater.quitAndInstall();
   return true;
+});
+
+// 开发环境测试更新功能
+ipcMain.handle('test-update', () => {
+  if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
+    console.log('开发环境：模拟发现新版本...');
+    if (mainWindow) {
+      mainWindow.webContents.send('update-available', {
+        version: '1.0.2',
+        releaseNotes: '这是一个测试更新，包含以下改进：\n- 修复了已知问题\n- 提升了性能\n- 新增了功能',
+        releaseUrl: 'https://github.com/ling-shi-cyber/water-reminder/releases/tag/v1.0.2'
+      });
+    }
+    return true;
+  }
+  return false;
 });

@@ -101,6 +101,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadData();
     setupEventListeners();
     updateUI();
+    
+    // 检查更新提醒
+    checkUpdateReminder();
 });
 // 加载数据
 async function loadData() {
@@ -141,6 +144,12 @@ function setupEventListeners() {
         autoCheckUpdate.addEventListener('change', saveSettings);
     }
     
+    // 自动下载更新开关
+    const autoDownloadUpdate = document.getElementById('autoDownloadUpdate');
+    if (autoDownloadUpdate) {
+        autoDownloadUpdate.addEventListener('change', saveSettings);
+    }
+    
     // 更新检查功能
     const checkUpdateBtn = document.getElementById('checkUpdateBtn');
     
@@ -148,6 +157,19 @@ function setupEventListeners() {
         checkUpdateBtn.addEventListener('click', async () => {
             showNotification('正在检查更新...', 'info');
             await ipcRenderer.invoke('check-for-updates');
+        });
+    }
+    
+    // 测试更新功能（仅开发环境）
+    const testUpdateBtn = document.getElementById('testUpdateBtn');
+    if (testUpdateBtn) {
+        testUpdateBtn.addEventListener('click', async () => {
+            const result = await ipcRenderer.invoke('test-update');
+            if (result) {
+                showNotification('开发环境：模拟发现新版本', 'info');
+            } else {
+                showNotification('此功能仅在开发环境中可用', 'error');
+            }
         });
     }
     
@@ -258,7 +280,20 @@ function setupEventListeners() {
     // 监听更新事件
     ipcRenderer.on('update-available', (event, info) => {
         console.log('发现新版本:', info);
-        showUpdateNotification(info);
+        
+        // 检查用户设置，如果启用了自动下载，则直接开始下载
+        if (currentSettings.autoDownloadUpdate) {
+            console.log('用户设置了自动下载，开始下载更新...');
+            ipcRenderer.invoke('download-update');
+        } else {
+            // 显示选择界面
+            showUpdateNotification(info);
+        }
+    });
+    
+    ipcRenderer.on('update-not-available', (event, info) => {
+        console.log('当前已是最新版本:', info);
+        showNotification('当前已是最新版本', 'success');
     });
     
     ipcRenderer.on('update-downloaded', (event, info) => {
@@ -268,7 +303,18 @@ function setupEventListeners() {
     
     ipcRenderer.on('download-progress', (event, progress) => {
         console.log('下载进度:', Math.round(progress.percent) + '%');
-        showNotification(`正在下载更新: ${Math.round(progress.percent)}%`, 'info');
+        // 只显示简单的下载提示，不显示具体进度
+        showNotification('正在下载更新...', 'info');
+    });
+    
+    ipcRenderer.on('update-checking', () => {
+        console.log('正在检查更新...');
+        showNotification('正在检查更新...', 'info');
+    });
+    
+    ipcRenderer.on('update-error', (event, error) => {
+        console.error('更新检查失败:', error);
+        showNotification(`更新检查失败: ${error.message}`, 'error');
     });
 }
 // 页面切换
@@ -413,6 +459,12 @@ async function updateUI() {
         autoCheckUpdate.checked = currentSettings.autoCheckUpdate !== false; // 默认为true
     }
     
+    // 自动下载更新设置
+    const autoDownloadUpdate = document.getElementById('autoDownloadUpdate');
+    if (autoDownloadUpdate) {
+        autoDownloadUpdate.checked = currentSettings.autoDownloadUpdate || false;
+    }
+    
     updateThemeUI();
     updateVolumeDisplay();
     updateRecentReminders();
@@ -555,6 +607,7 @@ function handleThemeColorChange(event) {
 // 保存设置
 async function saveSettings() {
     const autoCheckUpdate = document.getElementById('autoCheckUpdate');
+    const autoDownloadUpdate = document.getElementById('autoDownloadUpdate');
     
     const newSettings = {
         enabled: enableReminder.checked,
@@ -563,7 +616,8 @@ async function saveSettings() {
         volume: parseFloat(voiceVolume.value),
         startMinimized: startMinimized.checked,
         autoStart: autoStart.checked,
-        autoCheckUpdate: autoCheckUpdate ? autoCheckUpdate.checked : true
+        autoCheckUpdate: autoCheckUpdate ? autoCheckUpdate.checked : true,
+        autoDownloadUpdate: autoDownloadUpdate ? autoDownloadUpdate.checked : false
     };
 
     try {
@@ -987,24 +1041,200 @@ const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
         from {
-            transform: translateX(100%);
+            transform: translateX(100%) scale(0.95);
             opacity: 0;
         }
         to {
-            transform: translateX(0);
+            transform: translateX(0) scale(1);
             opacity: 1;
         }
     }
     
     @keyframes slideOut {
         from {
-            transform: translateX(0);
+            transform: translateX(0) scale(1);
             opacity: 1;
         }
         to {
-            transform: translateX(100%);
+            transform: translateX(100%) scale(0.95);
             opacity: 0;
         }
+    }
+    
+    .update-notification.show {
+        animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .update-notification.hide {
+        animation: slideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .update-notification, .update-ready-notification, .update-progress-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.95);
+        color: #333;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        z-index: 1001;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    .update-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    
+    .update-title {
+        font-size: 16px;
+        font-weight: 500;
+        color: #2d3748;
+    }
+    
+    .update-header i {
+        color: #4299e1;
+        font-size: 16px;
+    }
+    
+    .update-info {
+        margin-bottom: 16px;
+    }
+    
+    .version-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        font-size: 14px;
+    }
+    
+    .current-version {
+        color: #718096;
+        font-size: 13px;
+    }
+    
+    .new-version {
+        color: #38a169;
+        font-weight: 600;
+        background: #f0fff4;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+    }
+    
+    .release-notes {
+        background: #f7fafc;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #4a5568;
+        max-height: 100px;
+        overflow-y: auto;
+        border-left: 3px solid #4299e1;
+    }
+    
+    .update-progress-notification {
+        background: rgba(255, 255, 255, 0.95);
+        border-left: 4px solid #4299e1;
+    }
+    
+    .update-ready-notification {
+        background: rgba(255, 255, 255, 0.95);
+        border-left: 4px solid #38a169;
+    }
+    
+    .update-ready-notification .update-header i {
+        color: #38a169;
+    }
+    
+    .notification-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .notification-content i {
+        font-size: 18px;
+    }
+    
+    .notification-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .notification-actions .btn {
+        padding: 8px 16px;
+        font-size: 13px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .notification-actions .btn-primary {
+        background: #4299e1;
+        color: white;
+        box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
+    }
+    
+    .notification-actions .btn-primary:hover {
+        background: #3182ce;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(66, 153, 225, 0.4);
+    }
+    
+    .notification-actions .btn-secondary {
+        background: #f7fafc;
+        color: #4a5568;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .notification-actions .btn-secondary:hover {
+        background: #edf2f7;
+        color: #2d3748;
+        transform: translateY(-1px);
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 8px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+    
+    .button-group {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .button-group .btn {
+        flex: 1;
+        min-width: 120px;
     }
 `;
 document.head.appendChild(style);
@@ -1189,15 +1419,37 @@ function getLogoSettings() {
 // 显示更新可用通知
 function showUpdateNotification(info) {
     const message = `发现新版本 ${info.version}，是否立即下载？`;
+    const releaseNotes = info.releaseNotes ? info.releaseNotes.substring(0, 200) + '...' : '';
+    const releaseUrl = info.releaseUrl || '#';
+    
     const notification = document.createElement('div');
     notification.className = 'notification update-notification';
     notification.innerHTML = `
         <div class="notification-content">
-            <i class="fas fa-download"></i>
-            <span>${message}</span>
+            <div class="update-header">
+                <i class="fas fa-sync-alt"></i>
+                <span class="update-title">发现新版本</span>
+            </div>
+            <div class="update-info">
+                <div class="version-info">
+                    <span class="current-version">当前: v1.0.1</span>
+                    <span class="new-version">v${info.version}</span>
+                </div>
+                ${releaseNotes ? `<div class="release-notes">${releaseNotes}</div>` : ''}
+            </div>
             <div class="notification-actions">
-                <button class="btn btn-sm btn-primary" id="downloadUpdate">立即下载</button>
-                <button class="btn btn-sm btn-secondary" id="dismissUpdate">稍后</button>
+                <button class="btn btn-primary" id="downloadUpdate">
+                    <i class="fas fa-download"></i>
+                    立即下载
+                </button>
+                <button class="btn btn-secondary" id="viewRelease">
+                    <i class="fas fa-external-link-alt"></i>
+                    查看详情
+                </button>
+                <button class="btn btn-secondary" id="dismissUpdate">
+                    <i class="fas fa-clock"></i>
+                    稍后提醒
+                </button>
             </div>
         </div>
     `;
@@ -1210,7 +1462,20 @@ function showUpdateNotification(info) {
     
     // 绑定按钮事件
     document.getElementById('downloadUpdate').addEventListener('click', () => {
-        ipcRenderer.invoke('check-for-updates');
+        // 开始下载更新
+        ipcRenderer.invoke('download-update');
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    });
+    
+    document.getElementById('viewRelease').addEventListener('click', () => {
+        // 打开GitHub发布页面
+        const { shell } = require('electron');
+        shell.openExternal(releaseUrl);
         notification.classList.remove('show');
         setTimeout(() => {
             if (notification.parentNode) {
@@ -1220,6 +1485,8 @@ function showUpdateNotification(info) {
     });
     
     document.getElementById('dismissUpdate').addEventListener('click', () => {
+        // 稍后提醒（24小时后）
+        setUpdateReminder();
         notification.classList.remove('show');
         setTimeout(() => {
             if (notification.parentNode) {
@@ -1229,18 +1496,66 @@ function showUpdateNotification(info) {
     });
 }
 
+// 设置更新提醒
+function setUpdateReminder() {
+    const reminderTime = new Date();
+    reminderTime.setHours(reminderTime.getHours() + 24); // 24小时后提醒
+    
+    localStorage.setItem('updateReminderTime', reminderTime.toISOString());
+    showNotification('已设置24小时后提醒更新', 'info');
+}
+
+// 检查是否有待提醒的更新
+function checkUpdateReminder() {
+    const reminderTime = localStorage.getItem('updateReminderTime');
+    if (reminderTime) {
+        const reminder = new Date(reminderTime);
+        const now = new Date();
+        
+        if (now >= reminder) {
+            localStorage.removeItem('updateReminderTime');
+            // 重新检查更新
+            ipcRenderer.invoke('check-for-updates');
+        }
+    }
+}
+
+// 显示更新进度通知（简化版）
+function showUpdateProgressNotification(progress) {
+    // 这个函数现在不再使用，因为我们只显示简单的通知
+    // 保留函数以防其他地方调用
+    console.log('下载进度:', Math.round(progress.percent) + '%');
+}
+
 // 显示更新准备就绪通知
 function showUpdateReadyNotification(info) {
+    // 移除进度通知
+    const existingProgress = document.querySelector('.update-progress-notification');
+    if (existingProgress) {
+        existingProgress.remove();
+    }
+    
     const message = `更新 ${info.version} 下载完成，是否立即安装？`;
     const notification = document.createElement('div');
     notification.className = 'notification update-ready-notification';
     notification.innerHTML = `
         <div class="notification-content">
-            <i class="fas fa-check-circle"></i>
-            <span>${message}</span>
+            <div class="update-header">
+                <i class="fas fa-check-circle"></i>
+                <span class="update-title">更新准备就绪</span>
+            </div>
+            <div class="update-info">
+                <p style="margin: 0; color: #4a5568; font-size: 14px;">${message}</p>
+            </div>
             <div class="notification-actions">
-                <button class="btn btn-sm btn-primary" id="installUpdate">立即安装</button>
-                <button class="btn btn-sm btn-secondary" id="dismissInstall">稍后</button>
+                <button class="btn btn-primary" id="installUpdate">
+                    <i class="fas fa-rocket"></i>
+                    立即安装
+                </button>
+                <button class="btn btn-secondary" id="dismissInstall">
+                    <i class="fas fa-clock"></i>
+                    稍后安装
+                </button>
             </div>
         </div>
     `;

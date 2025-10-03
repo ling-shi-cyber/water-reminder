@@ -1,6 +1,6 @@
 {
   "name": "water-reminder",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "每日抬水提醒",
   "main": "main.js",
   "scripts": {
@@ -34,7 +34,8 @@
     "publish": {
       "provider": "github",
       "owner": "ling-shi-cyber",
-      "repo": "water-reminder"
+      "repo": "water-reminder",
+      "private": false
     },
     "files": [
       "main.js",
@@ -66,7 +67,8 @@
       "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "每日抬水提醒"
+      "shortcutName": "每日抬水提醒",
+      "artifactName": "water-reminder-Setup-${version}.exe"
     }
   }
 }
