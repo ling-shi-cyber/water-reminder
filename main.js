@@ -4,6 +4,7 @@ const Store = require('electron-store');
 const { spawn } = require('child_process');
 const { exec } = require('child_process');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 
 const store = new Store();
 
@@ -191,6 +192,10 @@ app.whenReady().then(() => {
   
   initializeReminder();
   console.log('提醒功能初始化完成');
+  
+  // 检查更新
+  checkForUpdates();
+  console.log('更新检查已启动');
   
   // 启动时最小化
   if (settings.startMinimized) {
@@ -459,12 +464,13 @@ function speakText(text) {
 
 ipcMain.handle('get-settings', () => {
   return store.get('settings', {
-    enabled: false,
+    enabled: true,
     reminderTime: '09:00',
     voiceEnabled: true,
-    volume: 0.8,
+    volume: 1.0,
     startMinimized: false,
-    autoStart: false
+    autoStart: false,
+    autoCheckUpdate: true
   });
 });
 
@@ -682,4 +688,67 @@ ipcMain.handle('window-close', () => {
 
 ipcMain.handle('window-is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false;
+});
+
+// 自动更新功能
+function checkForUpdates() {
+  // 开发环境跳过更新检查
+  if (process.env.NODE_ENV === 'development') {
+    console.log('开发环境，跳过更新检查');
+    return;
+  }
+
+  // 检查用户设置
+  const settings = store.get('settings', {});
+  if (!settings.autoCheckUpdate) {
+    console.log('用户已禁用自动检查更新');
+    return;
+  }
+
+  autoUpdater.checkForUpdatesAndNotify();
+}
+
+// 更新事件监听
+autoUpdater.on('checking-for-update', () => {
+  console.log('正在检查更新...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('发现新版本:', info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-available', info);
+  }
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  console.log('当前已是最新版本');
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('更新检查失败:', err);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  console.log('下载进度:', Math.round(progressObj.percent) + '%');
+  if (mainWindow) {
+    mainWindow.webContents.send('download-progress', progressObj);
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('更新下载完成，准备安装...');
+  if (mainWindow) {
+    mainWindow.webContents.send('update-downloaded', info);
+  }
+});
+
+// IPC处理更新相关请求
+ipcMain.handle('check-for-updates', () => {
+  checkForUpdates();
+  return true;
+});
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall();
+  return true;
 });

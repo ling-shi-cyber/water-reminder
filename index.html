@@ -196,8 +196,8 @@
                             
                             <div class="form-group">
                                 <label for="voiceVolume" class="form-label">语音音量</label>
-                                <input type="range" id="voiceVolume" class="form-range" min="0" max="1" step="0.1" value="0.8">
-                                <span class="range-value" id="volumeValue">80%</span>
+                                <input type="range" id="voiceVolume" class="form-range" min="0" max="1" step="0.1" value="1.0">
+                                <span class="range-value" id="volumeValue">100%</span>
                             </div>
                             
                             <div class="form-group">
@@ -222,6 +222,7 @@
                             
                         </div>
                     </div>
+                    
                     
                     <div class="card">
                         <div class="card-header">
@@ -312,6 +313,41 @@
                                     <button type="button" class="btn btn-danger" id="resetLogoBtn">
                                         <i class="fas fa-undo"></i>
                                         重置默认
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>应用信息</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="app-info">
+                                <div class="info-item">
+                                    <span class="label">应用名称:</span>
+                                    <span class="value">每日抬水提醒</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">版本:</span>
+                                    <span class="value">v1.0.1</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">最后更新时间:</span>
+                                    <span class="value">2025年10月3日</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">自动检查更新:</span>
+                                    <label class="switch">
+                                        <input type="checkbox" id="autoCheckUpdate" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="info-item">
+                                    <button type="button" class="btn btn-primary" id="checkUpdateBtn">
+                                        <i class="fas fa-sync-alt"></i>
+                                        检查更新
                                     </button>
                                 </div>
                             </div>
@@ -484,27 +520,6 @@
                         </div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>应用信息</h3>
-                        </div>
-                        <div class="card-content">
-                            <div class="app-info">
-                                <div class="info-item">
-                                    <span class="label">应用名称:</span>
-                                    <span class="value">每日抬水提醒</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="label">版本:</span>
-                                    <span class="value">v1.0.0</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="label">最后更新时间:</span>
-                                    <span class="value">2025年10月2日</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

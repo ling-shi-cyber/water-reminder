@@ -110,6 +110,7 @@ async function loadData() {
         reminderHistory = JSON.parse(localStorage.getItem('reminderHistory') || '[]');
         waterCount = await ipcRenderer.invoke('get-water-count');
         
+        
         loadThemeSettings();
         initLogoSettings();
     } catch (error) {
@@ -133,6 +134,22 @@ function setupEventListeners() {
     voiceVolume.addEventListener('change', saveSettings);
     startMinimized.addEventListener('change', saveSettings);
     autoStart.addEventListener('change', saveSettings);
+    
+    // 自动检查更新开关
+    const autoCheckUpdate = document.getElementById('autoCheckUpdate');
+    if (autoCheckUpdate) {
+        autoCheckUpdate.addEventListener('change', saveSettings);
+    }
+    
+    // 更新检查功能
+    const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+    
+    if (checkUpdateBtn) {
+        checkUpdateBtn.addEventListener('click', async () => {
+            showNotification('正在检查更新...', 'info');
+            await ipcRenderer.invoke('check-for-updates');
+        });
+    }
     
     // 主题切换
     lightMode.addEventListener('change', handleThemeModeChange);
@@ -236,6 +253,22 @@ function setupEventListeners() {
             updateWaterCountDisplay();
         }
         daysUntilReminder.textContent = await calculateTimeUntilReminder();
+    });
+    
+    // 监听更新事件
+    ipcRenderer.on('update-available', (event, info) => {
+        console.log('发现新版本:', info);
+        showUpdateNotification(info);
+    });
+    
+    ipcRenderer.on('update-downloaded', (event, info) => {
+        console.log('更新下载完成:', info);
+        showUpdateReadyNotification(info);
+    });
+    
+    ipcRenderer.on('download-progress', (event, progress) => {
+        console.log('下载进度:', Math.round(progress.percent) + '%');
+        showNotification(`正在下载更新: ${Math.round(progress.percent)}%`, 'info');
     });
 }
 // 页面切换
@@ -373,6 +406,12 @@ async function updateUI() {
     voiceVolume.value = currentSettings.volume || 0.8;
     startMinimized.checked = currentSettings.startMinimized || false;
     autoStart.checked = currentSettings.autoStart || false;
+    
+    // 自动检查更新设置
+    const autoCheckUpdate = document.getElementById('autoCheckUpdate');
+    if (autoCheckUpdate) {
+        autoCheckUpdate.checked = currentSettings.autoCheckUpdate !== false; // 默认为true
+    }
     
     updateThemeUI();
     updateVolumeDisplay();
@@ -515,13 +554,16 @@ function handleThemeColorChange(event) {
 
 // 保存设置
 async function saveSettings() {
+    const autoCheckUpdate = document.getElementById('autoCheckUpdate');
+    
     const newSettings = {
         enabled: enableReminder.checked,
         reminderTime: reminderTime.value,
         voiceEnabled: enableVoice.checked,
         volume: parseFloat(voiceVolume.value),
         startMinimized: startMinimized.checked,
-        autoStart: autoStart.checked
+        autoStart: autoStart.checked,
+        autoCheckUpdate: autoCheckUpdate ? autoCheckUpdate.checked : true
     };
 
     try {
@@ -1142,6 +1184,86 @@ function getLogoSettings() {
         title: '逐梦者19班',
         motto: '我们不生产水，我们只是大自然的搬运工'
     };
+}
+
+// 显示更新可用通知
+function showUpdateNotification(info) {
+    const message = `发现新版本 ${info.version}，是否立即下载？`;
+    const notification = document.createElement('div');
+    notification.className = 'notification update-notification';
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas fa-download"></i>
+            <span>${message}</span>
+            <div class="notification-actions">
+                <button class="btn btn-sm btn-primary" id="downloadUpdate">立即下载</button>
+                <button class="btn btn-sm btn-secondary" id="dismissUpdate">稍后</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 100);
+    
+    // 绑定按钮事件
+    document.getElementById('downloadUpdate').addEventListener('click', () => {
+        ipcRenderer.invoke('check-for-updates');
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    });
+    
+    document.getElementById('dismissUpdate').addEventListener('click', () => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    });
+}
+
+// 显示更新准备就绪通知
+function showUpdateReadyNotification(info) {
+    const message = `更新 ${info.version} 下载完成，是否立即安装？`;
+    const notification = document.createElement('div');
+    notification.className = 'notification update-ready-notification';
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas fa-check-circle"></i>
+            <span>${message}</span>
+            <div class="notification-actions">
+                <button class="btn btn-sm btn-primary" id="installUpdate">立即安装</button>
+                <button class="btn btn-sm btn-secondary" id="dismissInstall">稍后</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 100);
+    
+    // 绑定按钮事件
+    document.getElementById('installUpdate').addEventListener('click', () => {
+        ipcRenderer.invoke('install-update');
+    });
+    
+    document.getElementById('dismissInstall').addEventListener('click', () => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    });
 }
 
 function updateLogoDisplay() {
