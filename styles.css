@@ -1887,6 +1887,237 @@ body.dark-mode .author-description {
     color: #94a3b8;
 }
 
+/* ================================
+   更新通知居中弹窗样式
+=============================== */
+
+/* 更新通知遮罩层 */
+.update-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+/* 更新通知弹窗 */
+.update-modal {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.update-modal-header {
+    padding: 24px 24px 16px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.update-modal-header i {
+    font-size: 24px;
+    color: var(--primary-color);
+}
+
+.update-modal-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+.update-modal-body {
+    padding: 20px 24px;
+}
+
+.update-version-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.current-version-text {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.new-version-badge {
+    color: #059669;
+    font-weight: 600;
+    background: #d1fae5;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.update-release-notes {
+    background: #f1f5f9;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #374151;
+    max-height: 200px;
+    overflow-y: auto;
+    border-left: 3px solid var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.update-modal-footer {
+    padding: 16px 24px 24px 24px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    border-top: 1px solid #e2e8f0;
+}
+
+.update-modal-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.update-modal-btn-primary {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.update-modal-btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+}
+
+.update-modal-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.update-modal-btn-secondary:hover {
+    background: #e5e7eb;
+    color: #1f2937;
+    transform: translateY(-1px);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes scaleOut {
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+    to {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+/* 深色模式更新通知弹窗 */
+body.dark-mode .update-modal {
+    background: #1e293b;
+    border: 1px solid #334155;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .update-modal-header {
+    border-bottom: 1px solid #334155;
+}
+
+body.dark-mode .update-modal-title {
+    color: #f1f5f9;
+}
+
+body.dark-mode .update-version-info {
+    background: #334155;
+    border-left: 4px solid var(--primary-color);
+}
+
+body.dark-mode .current-version-text {
+    color: #94a3b8;
+}
+
+body.dark-mode .new-version-badge {
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+body.dark-mode .update-release-notes {
+    background: #334155;
+    color: #cbd5e1;
+    border-left: 3px solid var(--primary-color);
+}
+
+body.dark-mode .update-modal-footer {
+    border-top: 1px solid #334155;
+}
+
+body.dark-mode .update-modal-btn-secondary {
+    background: #334155;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+}
+
+body.dark-mode .update-modal-btn-secondary:hover {
+    background: #475569;
+    color: #f1f5f9;
+}
+
 body.dark-mode .contact-item,
 body.dark-mode .social-item {
     background: #334155;
@@ -1981,4 +2212,106 @@ body.dark-mode .logo-upload-container {
     .button-group .btn {
         width: 100%;
     }
+}
+
+/* 下载源选择器样式 */
+.download-source-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.download-source-option {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.download-source-option:hover {
+    border-color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.download-source-option input[type="radio"] {
+    display: none;
+}
+
+.download-source-mark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    margin-right: 12px;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.download-source-option input[type="radio"]:checked + .download-source-mark {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+}
+
+.download-source-option input[type="radio"]:checked + .download-source-mark::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.download-source-option input[type="radio"]:checked ~ .download-source-info {
+    color: var(--primary-color);
+}
+
+.download-source-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.download-source-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: #1f2937;
+}
+
+.download-source-desc {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.download-source-option input[type="radio"]:checked ~ .download-source-info .download-source-name {
+    color: var(--primary-color);
+}
+
+/* 深色模式下载源选择器 */
+body.dark-mode .download-source-option {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-mode .download-source-option:hover {
+    border-color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+body.dark-mode .download-source-name {
+    color: #f1f5f9;
+}
+
+body.dark-mode .download-source-desc {
+    color: #94a3b8;
+}
+
+body.dark-mode .download-source-option input[type="radio"]:checked ~ .download-source-info .download-source-name {
+    color: var(--primary-color);
 }

@@ -2,7 +2,6 @@
 chcp 65001 >nul
 echo 启动每日抬水提醒...
 
-echo 启动应用...
 npm run dev
 
 if %errorlevel% neq 0 (

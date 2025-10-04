@@ -21,9 +21,6 @@
             <button class="titlebar-button minimize" id="minimizeBtn">
                 <i class="fas fa-minus"></i>
             </button>
-            <button class="titlebar-button maximize" id="maximizeBtn">
-                <i class="fas fa-square"></i>
-            </button>
             <button class="titlebar-button close" id="closeBtn">
                 <i class="fas fa-times"></i>
             </button>
@@ -241,6 +238,28 @@
                             </div>
                             
                             <div class="form-group">
+                                <label class="form-label">下载源</label>
+                                <div class="download-source-selector">
+                                    <label class="download-source-option">
+                                        <input type="radio" name="downloadSource" value="gitee" id="giteeSource" checked>
+                                        <span class="download-source-mark"></span>
+                                        <div class="download-source-info">
+                                            <span class="download-source-name">Gitee（推荐）</span>
+                                            <span class="download-source-desc">国内访问速度快</span>
+                                        </div>
+                                    </label>
+                                    <label class="download-source-option">
+                                        <input type="radio" name="downloadSource" value="github" id="githubSource">
+                                        <span class="download-source-mark"></span>
+                                        <div class="download-source-info">
+                                            <span class="download-source-name">GitHub</span>
+                                            <span class="download-source-desc">官方源，全球访问</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
                                 <div class="button-group">
                                     <button type="button" class="btn btn-primary" id="checkUpdateBtn">
                                         <i class="fas fa-sync-alt"></i>
@@ -364,7 +383,7 @@
                                 </div>
                                 <div class="info-item">
                                     <span class="label">版本:</span>
-                                    <span class="value">v1.0.1</span>
+                                    <span class="value">v1.0.3</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="label">最后更新时间:</span>
@@ -600,7 +619,7 @@
                         <label class="import-option">
                             <input type="radio" name="importType" value="file" checked>
                             <span class="radio-mark"></span>
-                            从文件导入
+                            从txt文件导入
                         </label>
                         <label class="import-option">
                             <input type="radio" name="importType" value="text">
@@ -611,9 +630,9 @@
                 </div>
                 
                 <div class="form-group" id="fileImportGroup">
-                    <label for="importFile" class="form-label">选择文件</label>
-                    <input type="file" id="importFile" class="form-input" accept=".txt,.csv,.json">
-                    <div class="form-help">支持 .txt、.csv、.json 格式文件</div>
+                    <label for="importFile" class="form-label">选择txt文件</label>
+                    <input type="file" id="importFile" class="form-input" accept=".txt">
+                    <div class="form-help">支持 .txt 格式文件，每行一个学生姓名</div>
                 </div>
                 
                 <div class="form-group" id="textImportGroup" style="display: none;">

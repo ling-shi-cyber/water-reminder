@@ -1,6 +1,6 @@
 {
   "name": "water-reminder",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "每日抬水提醒",
   "main": "main.js",
   "scripts": {

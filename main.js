@@ -8,12 +8,18 @@ const { autoUpdater } = require('electron-updater');
 
 const store = new Store();
 
+// 读取用户设置的下载源
+function getDownloadSource() {
+  const settings = store.get('settings', {});
+  return settings.downloadSource || 'gitee';
+}
+
 let mainWindow;
 let tray = null;
 let reminderTimer = null;
-let currentReminderIndex = 0; // 轮流提醒用的索引
+let currentReminderIndex = 0;
 
-// 默认配置文件内容
+// 应用默认配置
 const defaultConfig = {
   version: "1.0.1",
   settings: {
@@ -23,7 +29,8 @@ const defaultConfig = {
     volume: 1.0,
     startMinimized: false,
     autoStart: false,
-    autoCheckUpdate: true
+    autoCheckUpdate: true,
+    downloadSource: "gitee"
   },
   students: [],
   waterCount: 0,
@@ -31,46 +38,37 @@ const defaultConfig = {
   firstRun: true
 };
 
-// 初始化配置文件
+// 创建配置文件
 function initializeConfig() {
-  // 使用用户数据目录而不是应用目录
   const userDataPath = app.getPath('userData');
   const configPath = path.join(userDataPath, 'config.json');
   
   try {
-    // 确保用户数据目录存在
     if (!fs.existsSync(userDataPath)) {
       fs.mkdirSync(userDataPath, { recursive: true });
     }
     
-    // 检查配置文件是否存在
     if (!fs.existsSync(configPath)) {
       console.log('首次运行，创建默认配置文件...');
       console.log('配置文件位置:', configPath);
       
-      // 创建默认配置文件
       fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf8');
       console.log('默认配置文件已创建:', configPath);
       
-      // 将默认配置写入electron-store
       store.set('settings', defaultConfig.settings);
       store.set('students', defaultConfig.students);
       store.set('waterCount', defaultConfig.waterCount);
       store.set('reminderIndex', defaultConfig.reminderIndex);
       store.set('firstRun', defaultConfig.firstRun);
       
-      console.log('默认配置已写入存储');
     } else {
       console.log('配置文件已存在，加载现有配置...');
       
-      // 读取现有配置文件
       const configContent = fs.readFileSync(configPath, 'utf8');
       const config = JSON.parse(configContent);
       
-      // 检查是否需要更新配置结构
       let configUpdated = false;
       
-      // 如果配置文件中没有某些字段，添加默认值
       if (!config.settings) {
         config.settings = defaultConfig.settings;
         configUpdated = true;
@@ -96,19 +94,16 @@ function initializeConfig() {
         configUpdated = true;
       }
       
-      // 更新版本号
       if (config.version !== defaultConfig.version) {
         config.version = defaultConfig.version;
         configUpdated = true;
       }
       
-      // 如果配置有更新，保存文件
       if (configUpdated) {
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
         console.log('配置文件已更新');
       }
       
-      // 将配置加载到electron-store
       store.set('settings', config.settings);
       store.set('students', config.students);
       store.set('waterCount', config.waterCount);
@@ -125,9 +120,8 @@ function initializeConfig() {
   }
 }
 
-// 更新配置文件
+// 同步配置到文件
 function updateConfigFile() {
-  // 使用用户数据目录而不是应用目录
   const userDataPath = app.getPath('userData');
   const configPath = path.join(userDataPath, 'config.json');
   
@@ -155,12 +149,11 @@ const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   // 已经有实例在运行了
-  console.log('应用已在运行，退出当前实例');
+  console.log('应用已在运行');
   app.quit();
 } else {
   // 第二个实例启动时显示窗口
   app.on('second-instance', (event, commandLine, workingDirectory) => {
-    console.log('检测到第二个实例启动，显示主窗口');
     
     // 弹个通知
     if (Notification.isSupported()) {
@@ -196,8 +189,10 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
-    minWidth: 800,
-    minHeight: 600,
+    resizable: false, // 禁用窗口缩放
+    maximizable: false, // 禁用最大化
+    minimizable: true, // 允许最小化
+    closable: true, // 允许关闭
     frame: false, // 无边框
     webPreferences: {
       nodeIntegration: true,
@@ -215,14 +210,11 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // 监听最大化状态
-  mainWindow.on('maximize', () => {
-    mainWindow.webContents.send('window-maximized');
-  });
-
-  mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('window-unmaximized');
-  });
+  // 强制设置窗口大小，防止任何缩放
+  mainWindow.setResizable(false);
+  mainWindow.setMaximizable(false);
+  mainWindow.setMinimizable(true);
+  mainWindow.setClosable(true);
 
   // 开发模式开调试工具
   if (process.argv.includes('--dev')) {
@@ -235,27 +227,21 @@ function createWindow() {
       return;
     }
     
-    // Windows/Linux 隐藏窗口
-    if (process.platform !== 'darwin') {
-      event.preventDefault();
-      mainWindow.hide();
-    }
+    // Windows 隐藏窗口到系统托盘
+    event.preventDefault();
+    mainWindow.hide();
   });
 }
 
 function createTray() {
   try {
-    console.log('创建托盘图标...');
-    
     const iconPath = path.join(__dirname, 'assets', 'icon.png');
-    console.log('托盘图标路径:', iconPath);
     tray = new Tray(iconPath);
     
     const contextMenu = Menu.buildFromTemplate([
       {
         label: '显示窗口',
         click: () => {
-          console.log('点击显示窗口');
           if (mainWindow) {
             mainWindow.show();
             mainWindow.focus();
@@ -265,7 +251,6 @@ function createTray() {
       {
         label: '隐藏窗口',
         click: () => {
-          console.log('点击隐藏窗口');
           if (mainWindow) {
             mainWindow.hide();
           }
@@ -275,7 +260,6 @@ function createTray() {
       {
         label: '测试提醒',
         click: () => {
-          console.log('点击测试提醒');
           triggerReminder();
         }
       },
@@ -283,7 +267,6 @@ function createTray() {
       {
         label: '退出应用',
         click: () => {
-          console.log('点击退出应用');
           app.isQuitting = true;
           if (tray) {
             tray.destroy();
@@ -297,9 +280,8 @@ function createTray() {
     tray.setContextMenu(contextMenu);
     tray.setToolTip('每日抬水提醒');
     
-    // 双击切换显示/隐藏
-    tray.on('double-click', () => {
-      console.log('双击托盘图标');
+    // 单击切换显示/隐藏
+    tray.on('click', () => {
       if (mainWindow) {
         if (mainWindow.isVisible()) {
           mainWindow.hide();
@@ -310,7 +292,6 @@ function createTray() {
       }
     });
     
-    console.log('托盘创建成功');
   } catch (error) {
     console.error('创建托盘失败:', error);
   }
@@ -331,13 +312,10 @@ app.whenReady().then(() => {
   const settings = store.get('settings', {});
   
   createWindow();
-  console.log('窗口创建完成');
   
   createTray();
-  console.log('托盘创建完成');
   
   initializeReminder();
-  console.log('提醒功能初始化完成');
   
   // 启动时最小化
   if (settings.startMinimized) {
@@ -360,11 +338,10 @@ app.whenReady().then(() => {
   }, 2000);
 });
 
-// macOS 窗口关闭时退出
+// 应用关闭处理
 app.on('window-all-closed', () => {
-  if (process.platform === 'darwin') {
-    app.quit();
-  }
+  // Windows 下不退出应用，保持托盘运行
+  // 只有用户主动退出或系统关闭时才退出
 });
 
 app.on('before-quit', (event) => {
@@ -430,7 +407,6 @@ function triggerReminder() {
   // 周日不提醒
   const currentDate = new Date();
   if (currentDate.getDay() === 0) {
-    console.log('今天是周日，跳过抬水提醒');
     return;
   }
 
@@ -517,97 +493,34 @@ function triggerReminder() {
 }
 
 function setAutoStart(enabled) {
-  const platform = process.platform;
+  const appPath = process.execPath;
+  const appName = '每日抬水提醒';
   
-  if (platform === 'win32') {
-    const appPath = process.execPath;
-    const appName = '每日抬水提醒';
-    
-    if (enabled) {
-      const regCommand = `reg add "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "${appName}" /t REG_SZ /d "${appPath}" /f`;
-      exec(regCommand, (error) => {
-        if (error) {
-          console.error('设置开机自启失败:', error);
-        } else {
-          console.log('开机自启设置成功');
-        }
-      });
-    } else {
-      const regCommand = `reg delete "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "${appName}" /f`;
-      exec(regCommand, (error) => {
-        if (error) {
-          console.error('取消开机自启失败:', error);
-        } else {
-          console.log('开机自启已取消');
-        }
-      });
-    }
-  } else if (platform === 'darwin') {
-    // macOS LaunchAgents
-    const appPath = process.execPath;
-    const plistPath = path.join(process.env.HOME, 'Library', 'LaunchAgents', 'com.waterreminder.app.plist');
-    
-    if (enabled) {
-      const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.waterreminder.app</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>${appPath}</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>`;
-      
-      require('fs').writeFileSync(plistPath, plistContent);
-      exec(`launchctl load ${plistPath}`);
-    } else {
-      exec(`launchctl unload ${plistPath}`);
-      if (require('fs').existsSync(plistPath)) {
-        require('fs').unlinkSync(plistPath);
+  if (enabled) {
+    const regCommand = `reg add "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "${appName}" /t REG_SZ /d "${appPath}" /f`;
+    exec(regCommand, (error) => {
+      if (error) {
+        console.error('设置开机自启失败:', error);
+      } else {
+        console.log('开机自启设置成功');
       }
-    }
-  } else if (platform === 'linux') {
-    // Linux .desktop 文件
-    const desktopPath = path.join(process.env.HOME, '.config', 'autostart', 'water-reminder.desktop');
-    const appPath = process.execPath;
-    
-    if (enabled) {
-      const desktopContent = `[Desktop Entry]
-Type=Application
-Name=每日抬水提醒
-Exec=${appPath}
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true`;
-      
-      require('fs').writeFileSync(desktopPath, desktopContent);
-    } else {
-      if (require('fs').existsSync(desktopPath)) {
-        require('fs').unlinkSync(desktopPath);
+    });
+  } else {
+    const regCommand = `reg delete "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "${appName}" /f`;
+    exec(regCommand, (error) => {
+      if (error) {
+        console.error('取消开机自启失败:', error);
+      } else {
+        console.log('开机自启已取消');
       }
-    }
+    });
   }
 }
 
 function speakText(text) {
-  const platform = process.platform;
-  
-  if (platform === 'win32') {
-    // PowerShell 语音
-    const psCommand = `Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("${text}")`;
-    spawn('powershell', ['-Command', psCommand]);
-  } else if (platform === 'darwin') {
-    // macOS say 命令
-    spawn('say', [text]);
-  } else if (platform === 'linux') {
-    // Linux espeak
-    spawn('espeak', [text]);
-  }
+  // Windows PowerShell 语音播报
+  const psCommand = `Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("${text}")`;
+  spawn('powershell', ['-Command', psCommand]);
 }
 
 ipcMain.handle('get-settings', () => {
@@ -797,37 +710,14 @@ ipcMain.handle('import-students-file', async (event, filePath) => {
     const content = fs.readFileSync(filePath, 'utf8');
     const ext = path.extname(filePath).toLowerCase();
     
-    let names = [];
-    
-    if (ext === '.json') {
-      const data = JSON.parse(content);
-      if (Array.isArray(data)) {
-        names = data.map(item => typeof item === 'string' ? item : item.name || item);
-      } else {
-        throw new Error('JSON文件格式不正确');
-      }
-    } else if (ext === '.csv') {
-      const lines = content.split('\n').filter(line => line.trim());
-      // 跳过标题
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line) {
-          // 简单CSV解析
-          const match = line.match(/^"([^"]*)"|^([^,]*)/);
-          if (match) {
-            const name = match[1] || match[2];
-            if (name && name !== '姓名') {
-              names.push(name);
-            }
-          }
-        }
-      }
-    } else {
-      // 按行分割
-      names = content.split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0);
+    if (ext !== '.txt') {
+      throw new Error('只支持.txt格式文件');
     }
+    
+    // 按行分割，每行一个学生姓名
+    const names = content.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
     
     return { success: true, names: names };
   } catch (error) {
@@ -842,38 +732,50 @@ ipcMain.handle('window-minimize', () => {
   }
 });
 
-ipcMain.handle('window-maximize', () => {
-  if (mainWindow) {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow.maximize();
-    }
-  }
-});
-
 ipcMain.handle('window-close', () => {
   if (mainWindow) {
     mainWindow.close();
   }
 });
 
-ipcMain.handle('window-is-maximized', () => {
-  return mainWindow ? mainWindow.isMaximized() : false;
-});
+// 设置更新源
+function configureUpdater() {
+  const downloadSource = getDownloadSource();
+  
+  if (downloadSource === 'gitee') {
+    // 使用Gitee源
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'snacks-bug',
+      repo: 'water-reminder',
+      private: false
+    });
+  } else {
+    console.log('使用GitHub源');
+    // 使用GitHub源
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'ling-shi-cyber',
+      repo: 'water-reminder',
+      private: false
+    });
+  }
+}
 
-// 自动更新功能
+// 检查更新
 function checkForUpdates() {
   // 检查用户设置
   const settings = store.get('settings', {});
   if (!settings.autoCheckUpdate) {
-    console.log('用户已禁用自动检查更新');
+    console.log('已禁用自动检查更新');
     return;
   }
+  
+  // 配置更新源
+  configureUpdater();
 
   // 开发环境也允许检查更新，但使用不同的策略
   if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
-    console.log('开发环境，使用GitHub API检查更新');
     checkForUpdatesInDev();
     return;
   }
@@ -883,9 +785,12 @@ function checkForUpdates() {
   autoUpdater.checkForUpdatesAndNotify();
 }
 
-// 开发环境更新检查
+// 开发环境更新
 async function checkForUpdatesInDev() {
   console.log('开发环境更新检查...');
+  
+  // 配置更新源
+  configureUpdater();
   
   try {
     // 检查GitHub releases
@@ -894,7 +799,15 @@ async function checkForUpdatesInDev() {
     
     console.log(`当前版本: ${currentVersion}`);
     
-    const options = {
+    // 根据用户选择选择API源
+    const downloadSource = getDownloadSource();
+    const options = downloadSource === 'gitee' ? {
+      hostname: 'gitee.com',
+      path: '/api/v5/repos/snacks-bug/water-reminder/releases/latest',
+      headers: {
+        'User-Agent': 'Water-Reminder-App'
+      }
+    } : {
       hostname: 'api.github.com',
       path: '/repos/ling-shi-cyber/water-reminder/releases/latest',
       headers: {
@@ -914,7 +827,7 @@ async function checkForUpdatesInDev() {
           const release = JSON.parse(data);
           const latestVersion = release.tag_name.replace('v', '');
           
-          console.log(`GitHub最新版本: ${latestVersion}`);
+          console.log(`${downloadSource === 'gitee' ? 'Gitee' : 'GitHub'}最新版本: ${latestVersion}`);
           
           if (compareVersions(latestVersion, currentVersion) > 0) {
             console.log('发现新版本:', latestVersion);
@@ -980,7 +893,7 @@ async function checkForUpdatesInDev() {
   }
 }
 
-// 版本比较函数
+// 比较版本号
 function compareVersions(version1, version2) {
   const v1parts = version1.split('.').map(Number);
   const v2parts = version2.split('.').map(Number);
@@ -996,7 +909,7 @@ function compareVersions(version1, version2) {
   return 0;
 }
 
-// 更新事件监听
+// 更新事件
 autoUpdater.on('checking-for-update', () => {
   console.log('正在检查更新...');
   if (mainWindow) {
@@ -1030,7 +943,6 @@ autoUpdater.on('error', (err) => {
 
 autoUpdater.on('download-progress', (progressObj) => {
   console.log('下载进度:', Math.round(progressObj.percent) + '%');
-  // 只在下载开始时发送一次通知，不频繁更新
   if (progressObj.percent === 0 || progressObj.percent < 5) {
     if (mainWindow) {
       mainWindow.webContents.send('download-progress', progressObj);
@@ -1045,15 +957,13 @@ autoUpdater.on('update-downloaded', (info) => {
   }
 });
 
-// IPC处理更新相关请求
+// 更新相关IPC
 ipcMain.handle('check-for-updates', () => {
   checkForUpdates();
   return true;
 });
 
 ipcMain.handle('download-update', () => {
-  // 在生产环境中，autoUpdater会自动处理下载
-  // 在开发环境中，我们只是模拟下载过程
   if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
     console.log('开发环境：模拟开始下载更新...');
     
@@ -1067,7 +977,6 @@ ipcMain.handle('download-update', () => {
       });
     }
     
-    // 模拟下载过程，但不频繁发送进度更新
     setTimeout(() => {
       if (mainWindow) {
         mainWindow.webContents.send('update-downloaded', {
@@ -1077,8 +986,6 @@ ipcMain.handle('download-update', () => {
       }
     }, 3000); // 3秒后完成下载
   } else {
-    // 生产环境使用autoUpdater
-    console.log('生产环境：使用electron-updater下载更新');
     autoUpdater.checkForUpdatesAndNotify();
   }
   return true;
@@ -1089,7 +996,12 @@ ipcMain.handle('install-update', () => {
   return true;
 });
 
-// 开发环境测试更新功能
+// 检测开发环境
+ipcMain.handle('is-development', () => {
+  return process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
+});
+
+// 测试更新
 ipcMain.handle('test-update', () => {
   if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
     console.log('开发环境：模拟发现新版本...');
@@ -1097,7 +1009,7 @@ ipcMain.handle('test-update', () => {
       mainWindow.webContents.send('update-available', {
         version: '1.0.2',
         releaseNotes: '这是一个测试更新，包含以下改进：\n- 修复了已知问题\n- 提升了性能\n- 新增了功能',
-        releaseUrl: 'https://github.com/ling-shi-cyber/water-reminder/releases/tag/v1.0.2'
+        releaseUrl: 'https://github.com/ling-shi-cyber/water-reminder/releases/tag/v1.0.0'
       });
     }
     return true;

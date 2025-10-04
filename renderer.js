@@ -1,12 +1,12 @@
 const { ipcRenderer } = require('electron');
 
-// 全局变量
+// 变量定义
 let currentSettings = {};
 let students = [];
 let reminderHistory = [];
-let timeUpdateTimer = null; // 定时器
-let waterCount = 0; // 桶数
-// DOM元素
+let timeUpdateTimer = null;
+let waterCount = 0;
+// 页面元素
 const navItems = document.querySelectorAll('.nav-item');
 const pages = document.querySelectorAll('.page');
 const statusDot = document.getElementById('statusDot');
@@ -30,6 +30,8 @@ const voiceVolume = document.getElementById('voiceVolume');
 const volumeValue = document.getElementById('volumeValue');
 const startMinimized = document.getElementById('startMinimized');
 const autoStart = document.getElementById('autoStart');
+const giteeSource = document.getElementById('giteeSource');
+const githubSource = document.getElementById('githubSource');
 const lightMode = document.getElementById('lightMode');
 const darkMode = document.getElementById('darkMode');
 const systemMode = document.getElementById('systemMode');
@@ -58,10 +60,9 @@ const exportStudentsBtn = document.getElementById('exportStudents');
 const importStudentsBtn = document.getElementById('importStudents');
 const confirmImportBtn = document.getElementById('confirmImport');
 const cancelImportBtn = document.getElementById('cancelImport');
-// 窗口控制
+// 页面初始化
 document.addEventListener('DOMContentLoaded', () => {
     const minimizeBtn = document.getElementById('minimizeBtn');
-    const maximizeBtn = document.getElementById('maximizeBtn');
     const closeBtn = document.getElementById('closeBtn');
 
     if (minimizeBtn) {
@@ -70,30 +71,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (maximizeBtn) {
-        maximizeBtn.addEventListener('click', () => {
-            ipcRenderer.invoke('window-maximize');
-        });
-    }
-
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
             ipcRenderer.invoke('window-close');
         });
     }
-
-    // 窗口状态变化
-    ipcRenderer.on('window-maximized', () => {
-        if (maximizeBtn) {
-            maximizeBtn.innerHTML = '<i class="fas fa-compress"></i>';
-        }
-    });
-
-    ipcRenderer.on('window-unmaximized', () => {
-        if (maximizeBtn) {
-            maximizeBtn.innerHTML = '<i class="fas fa-square"></i>';
-        }
-    });
 });
 
 // 初始化
@@ -105,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 检查更新提醒
     checkUpdateReminder();
 });
-// 加载数据
+// 读取数据
 async function loadData() {
     try {
         currentSettings = await ipcRenderer.invoke('get-settings');
@@ -120,7 +102,7 @@ async function loadData() {
         console.error('加载数据失败:', error);
     }
 }
-// 事件监听
+// 绑定事件
 function setupEventListeners() {
     // 导航切换
     navItems.forEach(item => {
@@ -150,6 +132,14 @@ function setupEventListeners() {
         autoDownloadUpdate.addEventListener('change', saveSettings);
     }
     
+    // 下载源选择
+    if (giteeSource) {
+        giteeSource.addEventListener('change', saveSettings);
+    }
+    if (githubSource) {
+        githubSource.addEventListener('change', saveSettings);
+    }
+    
     // 更新检查功能
     const checkUpdateBtn = document.getElementById('checkUpdateBtn');
     
@@ -160,7 +150,7 @@ function setupEventListeners() {
         });
     }
     
-    // 测试更新功能（仅开发环境）
+    // 测试更新功能
     const testUpdateBtn = document.getElementById('testUpdateBtn');
     if (testUpdateBtn) {
         testUpdateBtn.addEventListener('click', async () => {
@@ -303,7 +293,6 @@ function setupEventListeners() {
     
     ipcRenderer.on('download-progress', (event, progress) => {
         console.log('下载进度:', Math.round(progress.percent) + '%');
-        // 只显示简单的下载提示，不显示具体进度
         showNotification('正在下载更新...', 'info');
     });
     
@@ -317,7 +306,7 @@ function setupEventListeners() {
         showNotification(`更新检查失败: ${error.message}`, 'error');
     });
 }
-// 页面切换
+// 切换页面
 function switchPage(pageId) {
     navItems.forEach(item => {
         item.classList.remove('active');
@@ -347,7 +336,7 @@ function switchPage(pageId) {
     }
 }
 
-// 计算下次提醒时间
+// 计算提醒时间
 async function calculateTimeUntilReminder() {
     try {
         const totalStudents = students.length;
@@ -407,7 +396,7 @@ async function calculateTimeUntilReminder() {
     }
 }
 
-// 启动定时器
+// 开始定时器
 function startTimeUpdateTimer() {
     if (timeUpdateTimer) {
         clearInterval(timeUpdateTimer);
@@ -421,7 +410,7 @@ function startTimeUpdateTimer() {
     }, 60000);
 }
 
-// 停止定时器
+// 结束定时器
 function stopTimeUpdateTimer() {
     if (timeUpdateTimer) {
         clearInterval(timeUpdateTimer);
@@ -429,7 +418,7 @@ function stopTimeUpdateTimer() {
     }
 }
 
-// 更新界面
+// 刷新界面
 async function updateUI() {
     // 状态指示器
     if (currentSettings.enabled) {
@@ -465,6 +454,18 @@ async function updateUI() {
         autoDownloadUpdate.checked = currentSettings.autoDownloadUpdate || false;
     }
     
+    // 下载源设置
+    const downloadSource = currentSettings.downloadSource || 'gitee'; // 默认使用Gitee
+    if (giteeSource && githubSource) {
+        if (downloadSource === 'gitee') {
+            giteeSource.checked = true;
+            githubSource.checked = false;
+        } else {
+            giteeSource.checked = false;
+            githubSource.checked = true;
+        }
+    }
+    
     updateThemeUI();
     updateVolumeDisplay();
     updateRecentReminders();
@@ -478,12 +479,12 @@ async function updateUI() {
     }
 }
 
-// 更新音量显示
+// 刷新音量
 function updateVolumeDisplay() {
     const volume = Math.round(voiceVolume.value * 100);
     volumeValue.textContent = `${volume}%`;
 }
-// 主题管理
+// 主题相关
 const themeManager = {
     defaultSettings: {
         mode: 'system',
@@ -526,7 +527,7 @@ const themeManager = {
     }
 };
 
-// 加载主题设置
+// 读取主题
 function loadThemeSettings() {
     const settings = themeManager.getSettings();
     themeManager.applyTheme(settings.mode, settings.color);
@@ -543,7 +544,7 @@ function loadThemeSettings() {
     }
 }
 
-// 更新主题UI
+// 刷新主题UI
 function updateThemeUI() {
     const settings = themeManager.getSettings();
     
@@ -561,7 +562,7 @@ function updateThemeUI() {
     });
 }
 
-// 主题模式切换
+// 主题切换
 function handleThemeModeChange(event) {
     if (!event.target.checked) return;
     
@@ -580,7 +581,7 @@ function handleThemeModeChange(event) {
     showNotification(`已切换到${modeNames[settings.mode]}`, 'success');
 }
 
-// 主题颜色切换
+// 颜色切换
 function handleThemeColorChange(event) {
     const option = event.currentTarget;
     const newColor = option.dataset.theme;
@@ -604,10 +605,13 @@ function handleThemeColorChange(event) {
     showNotification(`已切换到${colorNames[newColor]}主题`, 'success');
 }
 
-// 保存设置
+// 保存配置
 async function saveSettings() {
     const autoCheckUpdate = document.getElementById('autoCheckUpdate');
     const autoDownloadUpdate = document.getElementById('autoDownloadUpdate');
+    
+    // 获取下载源选择
+    const downloadSource = giteeSource && giteeSource.checked ? 'gitee' : 'github';
     
     const newSettings = {
         enabled: enableReminder.checked,
@@ -617,7 +621,8 @@ async function saveSettings() {
         startMinimized: startMinimized.checked,
         autoStart: autoStart.checked,
         autoCheckUpdate: autoCheckUpdate ? autoCheckUpdate.checked : true,
-        autoDownloadUpdate: autoDownloadUpdate ? autoDownloadUpdate.checked : false
+        autoDownloadUpdate: autoDownloadUpdate ? autoDownloadUpdate.checked : false,
+        downloadSource: downloadSource
     };
 
     try {
@@ -631,8 +636,15 @@ async function saveSettings() {
     }
 }
 
-// 测试通知
+// 测试消息
 async function testNotification() {
+    // 检查是否为开发环境
+    const isDev = await ipcRenderer.invoke('is-development');
+    if (!isDev) {
+        showNotification('此功能仅在开发环境中可用', 'error');
+        return;
+    }
+    
     try {
         console.log('开始测试通知...');
         
@@ -648,6 +660,13 @@ async function testNotification() {
 
 // 测试语音
 async function testVoice() {
+    // 检查是否为开发环境
+    const isDev = await ipcRenderer.invoke('is-development');
+    if (!isDev) {
+        showNotification('此功能仅在开发环境中可用', 'error');
+        return;
+    }
+    
     try {
         await ipcRenderer.invoke('test-voice', '测试语音播报功能');
         showNotification('语音测试已发送', 'success');
@@ -1416,87 +1435,89 @@ function getLogoSettings() {
     };
 }
 
-// 显示更新可用通知
+// 显示更新提示
 function showUpdateNotification(info) {
-    const message = `发现新版本 ${info.version}，是否立即下载？`;
-    const releaseNotes = info.releaseNotes ? info.releaseNotes.substring(0, 200) + '...' : '';
+    const releaseNotes = info.releaseNotes ? info.releaseNotes.substring(0, 300) + '...' : '';
     const releaseUrl = info.releaseUrl || '#';
     
-    const notification = document.createElement('div');
-    notification.className = 'notification update-notification';
-    notification.innerHTML = `
-        <div class="notification-content">
-            <div class="update-header">
-                <i class="fas fa-sync-alt"></i>
-                <span class="update-title">发现新版本</span>
+    // 创建遮罩层
+    const overlay = document.createElement('div');
+    overlay.className = 'update-modal-overlay';
+    
+    // 创建弹窗内容
+    const modal = document.createElement('div');
+    modal.className = 'update-modal';
+    modal.innerHTML = `
+        <div class="update-modal-header">
+            <i class="fas fa-sync-alt"></i>
+            <h3 class="update-modal-title">发现新版本</h3>
+        </div>
+        <div class="update-modal-body">
+            <div class="update-version-info">
+                <span class="current-version-text">当前版本: v1.0.3</span>
+                <span class="new-version-badge">v${info.version}</span>
             </div>
-            <div class="update-info">
-                <div class="version-info">
-                    <span class="current-version">当前: v1.0.1</span>
-                    <span class="new-version">v${info.version}</span>
-                </div>
-                ${releaseNotes ? `<div class="release-notes">${releaseNotes}</div>` : ''}
-            </div>
-            <div class="notification-actions">
-                <button class="btn btn-primary" id="downloadUpdate">
-                    <i class="fas fa-download"></i>
-                    立即下载
-                </button>
-                <button class="btn btn-secondary" id="viewRelease">
-                    <i class="fas fa-external-link-alt"></i>
-                    查看详情
-                </button>
-                <button class="btn btn-secondary" id="dismissUpdate">
-                    <i class="fas fa-clock"></i>
-                    稍后提醒
-                </button>
-            </div>
+            ${releaseNotes ? `<div class="update-release-notes">${releaseNotes}</div>` : ''}
+        </div>
+        <div class="update-modal-footer">
+            <button class="update-modal-btn update-modal-btn-secondary" id="dismissUpdate">
+                <i class="fas fa-clock"></i>
+                稍后提醒
+            </button>
+            <button class="update-modal-btn update-modal-btn-secondary" id="viewRelease">
+                <i class="fas fa-external-link-alt"></i>
+                查看详情
+            </button>
+            <button class="update-modal-btn update-modal-btn-primary" id="downloadUpdate">
+                <i class="fas fa-download"></i>
+                立即下载
+            </button>
         </div>
     `;
     
-    document.body.appendChild(notification);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
     
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 100);
+    // 关闭弹窗函数
+    const closeModal = () => {
+        modal.style.animation = 'scaleOut 0.3s ease';
+        overlay.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => {
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+            }
+        }, 300);
+    };
     
     // 绑定按钮事件
     document.getElementById('downloadUpdate').addEventListener('click', () => {
         // 开始下载更新
         ipcRenderer.invoke('download-update');
-        notification.classList.remove('show');
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
+        closeModal();
     });
     
     document.getElementById('viewRelease').addEventListener('click', () => {
         // 打开GitHub发布页面
         const { shell } = require('electron');
         shell.openExternal(releaseUrl);
-        notification.classList.remove('show');
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
+        closeModal();
     });
     
     document.getElementById('dismissUpdate').addEventListener('click', () => {
         // 稍后提醒（24小时后）
         setUpdateReminder();
-        notification.classList.remove('show');
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
+        closeModal();
+    });
+    
+    // 点击遮罩层关闭弹窗
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeModal();
+        }
     });
 }
 
-// 设置更新提醒
+// 设置提醒
 function setUpdateReminder() {
     const reminderTime = new Date();
     reminderTime.setHours(reminderTime.getHours() + 24); // 24小时后提醒
@@ -1505,7 +1526,7 @@ function setUpdateReminder() {
     showNotification('已设置24小时后提醒更新', 'info');
 }
 
-// 检查是否有待提醒的更新
+// 检查提醒
 function checkUpdateReminder() {
     const reminderTime = localStorage.getItem('updateReminderTime');
     if (reminderTime) {
@@ -1520,14 +1541,14 @@ function checkUpdateReminder() {
     }
 }
 
-// 显示更新进度通知（简化版）
+// 显示下载进度
 function showUpdateProgressNotification(progress) {
     // 这个函数现在不再使用，因为我们只显示简单的通知
     // 保留函数以防其他地方调用
     console.log('下载进度:', Math.round(progress.percent) + '%');
 }
 
-// 显示更新准备就绪通知
+// 显示更新完成
 function showUpdateReadyNotification(info) {
     // 移除进度通知
     const existingProgress = document.querySelector('.update-progress-notification');
@@ -1535,49 +1556,68 @@ function showUpdateReadyNotification(info) {
         existingProgress.remove();
     }
     
-    const message = `更新 ${info.version} 下载完成，是否立即安装？`;
-    const notification = document.createElement('div');
-    notification.className = 'notification update-ready-notification';
-    notification.innerHTML = `
-        <div class="notification-content">
-            <div class="update-header">
-                <i class="fas fa-check-circle"></i>
-                <span class="update-title">更新准备就绪</span>
+    // 创建遮罩层
+    const overlay = document.createElement('div');
+    overlay.className = 'update-modal-overlay';
+    
+    // 创建弹窗内容
+    const modal = document.createElement('div');
+    modal.className = 'update-modal';
+    modal.innerHTML = `
+        <div class="update-modal-header">
+            <i class="fas fa-check-circle"></i>
+            <h3 class="update-modal-title">更新准备就绪</h3>
+        </div>
+        <div class="update-modal-body">
+            <div class="update-version-info">
+                <span class="current-version-text">新版本: v${info.version}</span>
+                <span class="new-version-badge">准备安装</span>
             </div>
-            <div class="update-info">
-                <p style="margin: 0; color: #4a5568; font-size: 14px;">${message}</p>
-            </div>
-            <div class="notification-actions">
-                <button class="btn btn-primary" id="installUpdate">
-                    <i class="fas fa-rocket"></i>
-                    立即安装
-                </button>
-                <button class="btn btn-secondary" id="dismissInstall">
-                    <i class="fas fa-clock"></i>
-                    稍后安装
-                </button>
-            </div>
+            <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                更新文件已下载完成，是否立即安装新版本？安装后应用将自动重启
+            </p>
+        </div>
+        <div class="update-modal-footer">
+            <button class="update-modal-btn update-modal-btn-secondary" id="dismissInstall">
+                <i class="fas fa-clock"></i>
+                稍后安装
+            </button>
+            <button class="update-modal-btn update-modal-btn-primary" id="installUpdate">
+                <i class="fas fa-rocket"></i>
+                立即安装
+            </button>
         </div>
     `;
     
-    document.body.appendChild(notification);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
     
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 100);
+    // 关闭弹窗函数
+    const closeModal = () => {
+        modal.style.animation = 'scaleOut 0.3s ease';
+        overlay.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => {
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+            }
+        }, 300);
+    };
     
     // 绑定按钮事件
     document.getElementById('installUpdate').addEventListener('click', () => {
         ipcRenderer.invoke('install-update');
+        closeModal();
     });
     
     document.getElementById('dismissInstall').addEventListener('click', () => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
+        closeModal();
+    });
+    
+    // 点击遮罩层关闭弹窗
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeModal();
+        }
     });
 }
 
